@@ -3,6 +3,7 @@ package logjson
 import (
 	"github.com/go-json-experiment/json/jsontext"
 	"reflect"
+	"sync"
 )
 
 type LogJson struct {
@@ -29,8 +30,76 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 	switch t.Kind() {
 	case reflect.String:
 		return j.makeStringHandlerItem()
+	case reflect.Struct:
+		return j.makeStructHandlerItem(t)
+	case reflect.Pointer:
+		return j.makePointerHandlerItem(t)
 	}
-	return nil
+	return &handlerItem{
+		marshal: func(v reflect.Value, state *encoderState) {
+			state.encoder.WriteToken(jsontext.Null)
+		},
+	}
+}
+
+func (j *LogJson) makePointerHandlerItem(t reflect.Type) *handlerItem {
+	item := &handlerItem{}
+	var once sync.Once
+	var valItem *handlerItem
+	init := func() {
+		valItem = j.getHandlerItem(t.Elem())
+	}
+	item.marshal = func(v reflect.Value, state *encoderState) {
+		if v.IsNil() {
+			state.encoder.WriteToken(jsontext.Null)
+			return
+		}
+		once.Do(init)
+		valItem.marshal(v.Elem(), state)
+	}
+	return item
+}
+
+func (j *LogJson) makeStructHandlerItem(t reflect.Type) *handlerItem {
+	var fields []structField
+	var once sync.Once
+	item := &handlerItem{}
+	init := func() {
+		fields = j.parseStructFields(t)
+	}
+	item.marshal = func(v reflect.Value, state *encoderState) {
+		once.Do(init)
+		state.encoder.WriteToken(jsontext.ObjectStart)
+		for _, field := range fields {
+			state.encoder.WriteToken(jsontext.String(field.Name))
+			field.handlerItem.marshal(v.FieldByIndex(field.Index), state)
+		}
+		state.encoder.WriteToken(jsontext.ObjectEnd)
+	}
+	return item
+}
+
+type structField struct {
+	Index       []int
+	Name        string
+	handlerItem *handlerItem
+}
+
+func (j *LogJson) parseStructFields(t reflect.Type) []structField {
+	fields := reflect.VisibleFields(t)
+	var result []structField
+	for _, field := range fields {
+		if field.Anonymous {
+			continue
+		}
+		newField := structField{
+			Name:        field.Name,
+			Index:       field.Index,
+			handlerItem: j.getHandlerItem(field.Type),
+		}
+		result = append(result, newField)
+	}
+	return result
 }
 
 func (j *LogJson) makeStringHandlerItem() *handlerItem {
