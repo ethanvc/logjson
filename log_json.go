@@ -2,6 +2,7 @@ package logjson
 
 import (
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"github.com/go-json-experiment/json/jsontext"
@@ -38,12 +39,52 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 		return j.makeStructHandlerItem(t)
 	case reflect.Pointer:
 		return j.makePointerHandlerItem(t)
+	case reflect.Slice:
+		return j.makeSliceHandlerItem(t)
 	}
 	return &handlerItem{
 		marshal: func(v reflect.Value, state *encoderState) {
 			state.encoder.WriteToken(jsontext.Null)
 		},
 	}
+}
+
+func (j *LogJson) makeSliceHandlerItem(t reflect.Type) *handlerItem {
+	item := &handlerItem{}
+	if t.Elem().Kind() == reflect.Uint8 {
+		item.marshal = func(v reflect.Value, state *encoderState) {
+			val := v.Bytes()
+			base64Val := base64.RawStdEncoding.EncodeToString(val)
+			state.encoder.WriteToken(jsontext.String(base64Val))
+		}
+		return item
+	}
+	var sliceItem *handlerItem
+	var once sync.Once
+	init := func() {
+		sliceItem = j.getHandlerItem(t.Elem())
+	}
+	item.marshal = func(v reflect.Value, state *encoderState) {
+		if v.IsNil() {
+			state.encoder.WriteToken(jsontext.Null)
+			return
+		}
+		if state.encoder.StackDepth() > startDetectingCyclesAfter {
+			if !state.enterPointer(v) {
+				state.encoder.WriteToken(jsontext.Null)
+				return
+			}
+			defer state.leavePointer(v)
+		}
+		once.Do(init)
+		n := v.Len()
+		state.encoder.WriteToken(jsontext.ArrayStart)
+		for i := 0; i < n; i++ {
+			sliceItem.marshal(v.Index(i), state)
+		}
+		state.encoder.WriteToken(jsontext.ArrayEnd)
+	}
+	return item
 }
 
 func (j *LogJson) makePointerHandlerItem(t reflect.Type) *handlerItem {

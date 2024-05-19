@@ -84,6 +84,11 @@ func TestLogJson_Cycle(t *testing.T) {
 	require.Contains(t, marshalToStr(abc), `{"p":{"p":null}`)
 }
 
+func TestLogJson_Bytes(t *testing.T) {
+	buf := []byte("hello")
+	require.Equal(t, `"aGVsbG8"`, marshalToStr(buf))
+}
+
 func Test_StdMarshal(t *testing.T) {
 	type Abc struct {
 		Pointer *Abc
