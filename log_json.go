@@ -123,6 +123,9 @@ func (j *LogJson) parseStructFields(t reflect.Type) []structField {
 	fields := reflect.VisibleFields(t)
 	var result []structField
 	for _, field := range fields {
+		if field.Anonymous {
+			continue
+		}
 		newField, ok := newStructField(j, field)
 		if !ok {
 			continue

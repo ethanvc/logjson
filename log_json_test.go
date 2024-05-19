@@ -48,6 +48,17 @@ func TestLogJson_MarshalWithJsonTag(t *testing.T) {
 	require.Equal(t, `{"name":"hello"}`, marshalToStr(Abc{Name: "hello"}))
 }
 
+func TestLogJsonMarshalEmbedStruct(t *testing.T) {
+	type Abc struct {
+		Name string
+	}
+	type Bcd struct {
+		Abc
+	}
+	require.Equal(t, `{"Name":"hello"}`,
+		marshalToStr(Bcd{Abc: Abc{Name: "hello"}}))
+}
+
 func Test_StdMarshal(t *testing.T) {
 	type Abc struct {
 		Pointer *Abc
