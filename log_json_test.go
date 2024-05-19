@@ -75,6 +75,15 @@ func TestLogJson_MarshalUnexportedField(t *testing.T) {
 		marshalToStr(Abc{name: "hello"}))
 }
 
+func TestLogJson_Cycle(t *testing.T) {
+	type Abc struct {
+		p *Abc
+	}
+	abc := &Abc{}
+	abc.p = abc
+	require.Equal(t, ``, marshalToStr(abc))
+}
+
 func Test_StdMarshal(t *testing.T) {
 	type Abc struct {
 		Pointer *Abc

@@ -58,6 +58,13 @@ func (j *LogJson) makePointerHandlerItem(t reflect.Type) *handlerItem {
 			state.encoder.WriteToken(jsontext.Null)
 			return
 		}
+		if state.encoder.StackDepth() > startDetectingCyclesAfter {
+			if !state.enterPointer(v) {
+				state.encoder.WriteToken(jsontext.Null)
+				return
+			}
+			defer state.leavePointer(v)
+		}
 		once.Do(init)
 		valItem.marshal(v.Elem(), state)
 	}
@@ -178,3 +185,5 @@ func removeNewline(s []byte) []byte {
 	}
 	return s
 }
+
+const startDetectingCyclesAfter = 1000
