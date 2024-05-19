@@ -41,6 +41,14 @@ func TestLogJson_MarshalOmitTag(t *testing.T) {
 	require.Equal(t, `{}`, marshalToStr(Abc{Name: "hello"}))
 }
 
+func TestLogJson_MarshalMd5Tag(t *testing.T) {
+	type Abc struct {
+		Name string `log:"md5"`
+	}
+	require.Equal(t, `{"Name":"5;5d41402abc4b2a76b9719d911017c592"}`,
+		marshalToStr(Abc{Name: "hello"}))
+}
+
 func TestLogJson_MarshalWithJsonTag(t *testing.T) {
 	type Abc struct {
 		Name string `json:"name"`

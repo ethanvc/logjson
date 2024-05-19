@@ -1,6 +1,9 @@
 package logjson
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
 	"github.com/go-json-experiment/json/jsontext"
 	"reflect"
 	"strings"
@@ -95,15 +98,33 @@ func newStructField(j *LogJson, field reflect.StructField) (structField, bool) {
 }
 
 func (f *structField) init(j *LogJson, field reflect.StructField) bool {
-	tagStr := field.Tag.Get("log")
-	switch tagStr {
-	case "omit":
+	f.Name = field.Name
+	f.Index = field.Index
+	if !f.initLogTag(j, field) {
 		return false
 	}
-	f.Name = field.Name
 	f.initJsonTag(field)
-	f.Index = field.Index
-	f.handlerItem = j.getHandlerItem(field.Type)
+	if f.handlerItem == nil {
+		f.handlerItem = j.getHandlerItem(field.Type)
+	}
+	return true
+}
+
+func (f *structField) initLogTag(j *LogJson, field reflect.StructField) bool {
+	switch field.Tag.Get("log") {
+	case "omit":
+		return false
+	case "md5":
+		if field.Type.Kind() == reflect.String {
+			f.handlerItem = &handlerItem{}
+			f.handlerItem.marshal = func(v reflect.Value, state *encoderState) {
+				s := v.String()
+				hexMd5 := md5.Sum([]byte(s))
+				md5Str := hex.EncodeToString(hexMd5[:])
+				state.encoder.WriteToken(jsontext.String(fmt.Sprintf("%d;%s", len(s), md5Str)))
+			}
+		}
+	}
 	return true
 }
 
