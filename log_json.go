@@ -85,17 +85,33 @@ type structField struct {
 	handlerItem *handlerItem
 }
 
+func newStructField(j *LogJson, field reflect.StructField) (structField, bool) {
+	f := structField{}
+	if !f.init(j, field) {
+		return structField{}, false
+	}
+	return f, true
+}
+
+func (f *structField) init(j *LogJson, field reflect.StructField) bool {
+	tagStr := field.Tag.Get("log")
+	switch tagStr {
+	case "omit":
+		return false
+	}
+	f.Name = field.Name
+	f.Index = field.Index
+	f.handlerItem = j.getHandlerItem(field.Type)
+	return true
+}
+
 func (j *LogJson) parseStructFields(t reflect.Type) []structField {
 	fields := reflect.VisibleFields(t)
 	var result []structField
 	for _, field := range fields {
-		if field.Anonymous {
+		newField, ok := newStructField(j, field)
+		if !ok {
 			continue
-		}
-		newField := structField{
-			Name:        field.Name,
-			Index:       field.Index,
-			handlerItem: j.getHandlerItem(field.Type),
 		}
 		result = append(result, newField)
 	}

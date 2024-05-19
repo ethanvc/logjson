@@ -29,6 +29,18 @@ func TestLogJson_MarshalPointer(t *testing.T) {
 	require.Equal(t, `{"Pointer":null,"Name":"hello"}`, marshalToStr(Abc{Name: "hello"}))
 }
 
+func TestLogJson_MarshalOmit(t *testing.T) {
+	ch := make(chan int, 5)
+	require.Equal(t, `null`, marshalToStr(ch))
+}
+
+func TestLogJson_MarshalOmitTag(t *testing.T) {
+	type Abc struct {
+		Name string `log:"omit"`
+	}
+	require.Equal(t, `{}`, marshalToStr(Abc{Name: "hello"}))
+}
+
 func Test_StdMarshal(t *testing.T) {
 	type Abc struct {
 		Pointer *Abc
