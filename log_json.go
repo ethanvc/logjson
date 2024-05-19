@@ -3,6 +3,7 @@ package logjson
 import (
 	"github.com/go-json-experiment/json/jsontext"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -100,9 +101,22 @@ func (f *structField) init(j *LogJson, field reflect.StructField) bool {
 		return false
 	}
 	f.Name = field.Name
+	f.initJsonTag(field)
 	f.Index = field.Index
 	f.handlerItem = j.getHandlerItem(field.Type)
 	return true
+}
+
+func (f *structField) initJsonTag(field reflect.StructField) {
+	parts := strings.Split(field.Tag.Get("json"), ",")
+	for i, part := range parts {
+		if i == 0 {
+			if part != "" {
+				f.Name = part
+			}
+			continue
+		}
+	}
 }
 
 func (j *LogJson) parseStructFields(t reflect.Type) []structField {
