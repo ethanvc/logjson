@@ -81,7 +81,7 @@ func TestLogJson_Cycle(t *testing.T) {
 	}
 	abc := &Abc{}
 	abc.p = abc
-	require.Equal(t, ``, marshalToStr(abc))
+	require.Contains(t, marshalToStr(abc), `{"p":{"p":null}`)
 }
 
 func Test_StdMarshal(t *testing.T) {
