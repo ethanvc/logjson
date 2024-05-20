@@ -108,6 +108,18 @@ func Test_StdMarshal(t *testing.T) {
 	json.Marshal(in)
 }
 
+func Test_StdMarshal_MapKey(t *testing.T) {
+	type Abc struct {
+		Name string
+	}
+	m := map[Abc]int{
+		Abc{"Hello"}: 3,
+	}
+	buf, err := json.Marshal(m)
+	require.Error(t, err)
+	_ = buf
+}
+
 func marshalToStr(in any) string {
 	return string(Marshal(in))
 }
