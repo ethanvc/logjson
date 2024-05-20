@@ -123,8 +123,12 @@ func (j *LogJson) makeStructHandlerItem(t reflect.Type) *handlerItem {
 		once.Do(init)
 		state.encoder.WriteToken(jsontext.ObjectStart)
 		for _, field := range fields {
+			elmV := v.FieldByIndex(field.Index)
+			if field.omitempty && isLegacyEmpty(elmV) {
+				continue
+			}
 			state.encoder.WriteToken(jsontext.String(field.Name))
-			field.handlerItem.marshal(v.FieldByIndex(field.Index), state)
+			field.handlerItem.marshal(elmV, state)
 		}
 		state.encoder.WriteToken(jsontext.ObjectEnd)
 	}
@@ -135,6 +139,7 @@ type structField struct {
 	Index       []int
 	Name        string
 	handlerItem *handlerItem
+	omitempty   bool
 }
 
 func newStructField(j *LogJson, field reflect.StructField) (structField, bool) {
@@ -185,6 +190,10 @@ func (f *structField) initJsonTag(field reflect.StructField) {
 			}
 			continue
 		}
+		switch part {
+		case "omitempty":
+			f.omitempty = true
+		}
 	}
 }
 
@@ -225,6 +234,26 @@ func removeNewline(s []byte) []byte {
 		return s[:l-1]
 	}
 	return s
+}
+
+// isLegacyEmpty reports whether a value is empty according to the v1 definition.
+func isLegacyEmpty(v reflect.Value) bool {
+	// Equivalent to encoding/json.isEmptyValue@v1.21.0.
+	switch v.Kind() {
+	case reflect.Bool:
+		return v.Bool() == false
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.String, reflect.Map, reflect.Slice, reflect.Array:
+		return v.Len() == 0
+	case reflect.Pointer, reflect.Interface:
+		return v.IsNil()
+	}
+	return false
 }
 
 const startDetectingCyclesAfter = 1000

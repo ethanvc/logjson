@@ -75,6 +75,14 @@ func TestLogJson_MarshalUnexportedField(t *testing.T) {
 		marshalToStr(Abc{name: "hello"}))
 }
 
+func TestLogJson_MarshalOmitEmpty(t *testing.T) {
+	type Abc struct {
+		name string `json:",omitempty"`
+	}
+	require.Equal(t, `{}`,
+		marshalToStr(Abc{name: ""}))
+}
+
 func TestLogJson_Cycle(t *testing.T) {
 	type Abc struct {
 		p *Abc
