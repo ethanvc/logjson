@@ -104,6 +104,18 @@ func TestLogJson_Bytes(t *testing.T) {
 	require.Equal(t, `"aGVsbG8"`, marshalToLogStr(buf))
 }
 
+func TestLogJson_Array(t *testing.T) {
+	a := []int{3, 4, 5}
+	require.Equal(t, `[3,4,5]`, marshalToLogStr(a))
+}
+
+func TestLogJson_Interface(t *testing.T) {
+	num := 3
+	var v any
+	v = num
+	require.Equal(t, `3`, marshalToLogStr(v))
+}
+
 func Test_ReflectString(t *testing.T) {
 	num := 3
 	v := reflect.ValueOf(num)

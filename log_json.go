@@ -51,15 +51,48 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 	case reflect.Slice:
 		return j.makeSliceHandlerItem(t)
 	case reflect.Array:
+		return j.makeArrayHandlerItem(t)
 	case reflect.Pointer:
 		return j.makePointerHandlerItem(t)
 	case reflect.Interface:
+		return j.makeInterfaceHandlerItem(t)
 	}
 	return &handlerItem{
 		marshal: func(v reflect.Value, state *encoderState) {
 			state.encoder.WriteToken(jsontext.Null)
 		},
 	}
+}
+
+func (j *LogJson) makeInterfaceHandlerItem(t reflect.Type) *handlerItem {
+	item := &handlerItem{}
+	item.marshal = func(v reflect.Value, state *encoderState) {
+		if v.IsNil() {
+			state.encoder.WriteToken(jsontext.Null)
+			return
+		}
+		j.getHandlerItem(v.Type()).marshal(v.Elem(), state)
+	}
+	return item
+}
+
+func (j *LogJson) makeArrayHandlerItem(t reflect.Type) *handlerItem {
+	item := &handlerItem{}
+	var once sync.Once
+	var elementHandlerItem *handlerItem
+	init := func() {
+		elementHandlerItem = j.getHandlerItem(t.Elem())
+	}
+	n := t.Len()
+	item.marshal = func(v reflect.Value, state *encoderState) {
+		once.Do(init)
+		state.encoder.WriteToken(jsontext.ArrayStart)
+		for i := 0; i < n; i++ {
+			elementHandlerItem.marshal(v.Index(i), state)
+		}
+		state.encoder.WriteToken(jsontext.ArrayEnd)
+	}
+	return item
 }
 
 func (j *LogJson) makeMapHandlerItem(t reflect.Type) *handlerItem {
