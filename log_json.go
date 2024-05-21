@@ -48,10 +48,12 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 		return j.makeMapHandlerItem(t)
 	case reflect.Struct:
 		return j.makeStructHandlerItem(t)
-	case reflect.Pointer:
-		return j.makePointerHandlerItem(t)
 	case reflect.Slice:
 		return j.makeSliceHandlerItem(t)
+	case reflect.Array:
+	case reflect.Pointer:
+		return j.makePointerHandlerItem(t)
+	case reflect.Interface:
 	}
 	return &handlerItem{
 		marshal: func(v reflect.Value, state *encoderState) {
