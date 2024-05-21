@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/go-json-experiment/json/jsontext"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -37,9 +38,9 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 		return j.makeBoolHandlerItem()
 	case reflect.String:
 		return j.makeStringHandlerItem()
-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return j.makeIntHandlerItem(t)
-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return j.makeUintHandlerItem(t)
 	case reflect.Float32, reflect.Float64:
 		return j.makeDoubleHandlerItem()
@@ -61,11 +62,19 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 
 func (j *LogJson) makeMapHandlerItem(t reflect.Type) *handlerItem {
 	item := &handlerItem{}
-	var once sync.Once
-	init := func() {
-
+	keyStringify, ok := generateMarshalToStringFunc(t.Key())
+	if !ok {
+		return &handlerItem{
+			marshal: func(v reflect.Value, state *encoderState) {
+				state.encoder.WriteToken(jsontext.Null)
+			},
+		}
 	}
-	once.Do(init)
+	var once sync.Once
+	var valueHandlerItem *handlerItem
+	init := func() {
+		valueHandlerItem = j.getHandlerItem(t.Elem())
+	}
 	item.marshal = func(v reflect.Value, state *encoderState) {
 		if v.IsNil() {
 			state.encoder.WriteToken(jsontext.Null)
@@ -79,6 +88,13 @@ func (j *LogJson) makeMapHandlerItem(t reflect.Type) *handlerItem {
 			defer state.leavePointer(v)
 		}
 		once.Do(init)
+		state.encoder.WriteToken(jsontext.ObjectStart)
+		for iter := v.MapRange(); iter.Next(); {
+			tmp := keyStringify(iter.Key())
+			state.encoder.WriteToken(jsontext.String(tmp))
+			valueHandlerItem.marshal(iter.Value(), state)
+		}
+		state.encoder.WriteToken(jsontext.ObjectEnd)
 	}
 	return item
 }
@@ -320,6 +336,37 @@ func isLegacyEmpty(v reflect.Value) bool {
 		return v.IsNil()
 	}
 	return false
+}
+
+func generateMarshalToStringFunc(t reflect.Type) (func(v reflect.Value) string, bool) {
+	var cb func(v reflect.Value) string
+	switch t.Kind() {
+	case reflect.Bool:
+		cb = func(v reflect.Value) string {
+			return strconv.FormatBool(v.Bool())
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		cb = func(v reflect.Value) string {
+			return strconv.FormatInt(v.Int(), 10)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		cb = func(v reflect.Value) string {
+			return strconv.FormatUint(v.Uint(), 10)
+		}
+	case reflect.Float32, reflect.Float64:
+		cb = func(v reflect.Value) string {
+			return strconv.FormatFloat(v.Float(), 'f', -1, 64)
+		}
+	case reflect.String:
+		cb = func(v reflect.Value) string {
+			return v.String()
+		}
+	}
+	if cb != nil {
+		return cb, true
+	} else {
+		return nil, false
+	}
 }
 
 const startDetectingCyclesAfter = 1000
