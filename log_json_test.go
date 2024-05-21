@@ -159,7 +159,6 @@ func Test_JsonV1_BoolKey(t *testing.T) {
 	buf, err := jsonv1.Marshal(m)
 	require.NoError(t, err)
 	require.Equal(t, ``, string(buf))
-
 }
 
 func marshalToLogStr(in any) string {
