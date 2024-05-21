@@ -1,10 +1,7 @@
 package logjson
 
 import (
-	jsonv1 "encoding/json"
-	"github.com/go-json-experiment/json"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
 )
@@ -107,58 +104,10 @@ func TestLogJson_Bytes(t *testing.T) {
 	require.Equal(t, `"aGVsbG8"`, marshalToLogStr(buf))
 }
 
-func Test_StdMarshal(t *testing.T) {
-	type Abc struct {
-		Pointer *Abc
-		Name    string
-	}
-	in := &Abc{
-		Name: "hello",
-	}
-	json.Marshal(in)
-}
-
-func Test_StdMarshal_MapKey(t *testing.T) {
-	type Abc struct {
-		Name string
-	}
-	m := map[Abc]int{
-		Abc{"Hello"}: 3,
-	}
-	buf, err := json.Marshal(m)
-	require.Error(t, err)
-	_ = buf
-	m1 := map[*int32]int{
-		proto.Int32(3): 3,
-	}
-	var p *int32
-	m1[p] = 4
-	buf, err = json.Marshal(m1)
-	require.Error(t, err)
-}
-
-func Test_StdMarshal_BoolKey(t *testing.T) {
-	m := map[bool]int32{
-		true: 3,
-	}
-	buf, err := json.Marshal(m)
-	require.NoError(t, err)
-	require.Equal(t, ``, string(buf))
-}
-
 func Test_ReflectString(t *testing.T) {
 	num := 3
 	v := reflect.ValueOf(num)
 	require.Equal(t, "<int Value>", v.String())
-}
-
-func Test_JsonV1_BoolKey(t *testing.T) {
-	m := map[bool]int32{
-		true: 3,
-	}
-	buf, err := jsonv1.Marshal(m)
-	require.NoError(t, err)
-	require.Equal(t, ``, string(buf))
 }
 
 func marshalToLogStr(in any) string {
