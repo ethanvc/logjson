@@ -32,7 +32,12 @@ func (j *LogJson) Marshal(in any) []byte {
 	return removeNewline(state.buf.Bytes())
 }
 
+var errorIntType = reflect.TypeFor[error]()
+
 func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
+	if t.Implements(errorIntType) {
+		return j.makeErrorHandlerItem()
+	}
 	switch t.Kind() {
 	case reflect.Bool:
 		return j.makeBoolHandlerItem()
@@ -60,6 +65,19 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 	return &handlerItem{
 		marshal: func(v reflect.Value, state *encoderState) {
 			state.encoder.WriteToken(jsontext.Null)
+		},
+	}
+}
+
+func (j *LogJson) makeErrorHandlerItem() *handlerItem {
+	return &handlerItem{
+		marshal: func(v reflect.Value, state *encoderState) {
+			if err, ok := v.Interface().(error); ok {
+				state.encoder.WriteToken(jsontext.String(err.Error()))
+				return
+			} else {
+				state.encoder.WriteToken(jsontext.Null)
+			}
 		},
 	}
 }

@@ -129,7 +129,15 @@ func TestLogJson_Interface(t *testing.T) {
 
 func TestLogJson_Error(t *testing.T) {
 	err := errors.New("hello")
-	require.Equal(t, ``, marshalToLogStr(err))
+	require.Equal(t, `hello`, marshalToLogStr(err))
+}
+
+func TestLogJson_NilError(t *testing.T) {
+	type Abc struct {
+		Err error
+	}
+	abc := Abc{}
+	require.Equal(t, `{"Err":null}`, marshalToLogStr(abc))
 }
 
 func Test_ReflectString(t *testing.T) {
