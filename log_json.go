@@ -13,6 +13,7 @@ import (
 )
 
 type LogJson struct {
+	handlerItems sync.Map
 }
 
 var defaultJson = NewLogJson()
@@ -34,7 +35,8 @@ func (j *LogJson) Marshal(in any) []byte {
 
 var errorIntType = reflect.TypeFor[error]()
 
-func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
+func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
+
 	if t.Implements(errorIntType) {
 		return j.makeErrorHandlerItem()
 	}
@@ -66,6 +68,18 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 		marshal: func(v reflect.Value, state *encoderState) {
 			state.encoder.WriteToken(jsontext.Null)
 		},
+	}
+}
+
+func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
+	if tmp, ok := j.handlerItems.Load(t); ok {
+		return tmp.(*handlerItem)
+	}
+	handler := j.getHandlerItemInternal(t)
+	if existHandler, loaded := j.handlerItems.LoadOrStore(t, handler); loaded {
+		return existHandler.(*handlerItem)
+	} else {
+		return handler
 	}
 }
 

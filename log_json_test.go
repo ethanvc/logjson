@@ -129,7 +129,7 @@ func TestLogJson_Interface(t *testing.T) {
 
 func TestLogJson_Error(t *testing.T) {
 	err := errors.New("hello")
-	require.Equal(t, `hello`, marshalToLogStr(err))
+	require.Equal(t, `"hello"`, marshalToLogStr(err))
 }
 
 func TestLogJson_NilError(t *testing.T) {
