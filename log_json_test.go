@@ -1,6 +1,7 @@
 package logjson
 
 import (
+	"errors"
 	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
@@ -124,6 +125,11 @@ func TestLogJson_Interface(t *testing.T) {
 	var abc testF
 	abc = testInt{Name: "hello"}
 	require.Equal(t, `{"Name":"hello"}`, marshalToLogStr(abc))
+}
+
+func TestLogJson_Error(t *testing.T) {
+	err := errors.New("hello")
+	require.Equal(t, ``, marshalToLogStr(err))
 }
 
 func Test_ReflectString(t *testing.T) {
