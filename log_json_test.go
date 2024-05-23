@@ -109,11 +109,21 @@ func TestLogJson_Array(t *testing.T) {
 	require.Equal(t, `[3,4,5]`, marshalToLogStr(a))
 }
 
+type testInt struct {
+	Name string
+}
+
+func (testInt) F() {
+
+}
+
 func TestLogJson_Interface(t *testing.T) {
-	num := 3
-	var v any
-	v = num
-	require.Equal(t, `3`, marshalToLogStr(v))
+	type testF interface {
+		F()
+	}
+	var abc testF
+	abc = testInt{Name: "hello"}
+	require.Equal(t, `{"Name":"hello"}`, marshalToLogStr(abc))
 }
 
 func Test_ReflectString(t *testing.T) {

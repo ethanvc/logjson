@@ -71,7 +71,8 @@ func (j *LogJson) makeInterfaceHandlerItem(t reflect.Type) *handlerItem {
 			state.encoder.WriteToken(jsontext.Null)
 			return
 		}
-		j.getHandlerItem(v.Type()).marshal(v.Elem(), state)
+		v = v.Elem()
+		j.getHandlerItem(v.Type()).marshal(v, state)
 	}
 	return item
 }
