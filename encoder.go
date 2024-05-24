@@ -1,37 +1,49 @@
 package logjson
 
 import (
-	"bytes"
 	"github.com/go-json-experiment/json/jsontext"
+	"io"
 	"reflect"
 )
 
-type encoderState struct {
+type Encoder struct {
 	encoder *jsontext.Encoder
-	buf     bytes.Buffer
+	w       io.Writer
 	visited map[valueId]struct{}
 }
 
-func newEncoderState() *encoderState {
-	state := &encoderState{}
-	state.encoder = jsontext.NewEncoder(&state.buf)
-	return state
+func NewEncoder(w io.Writer) *Encoder {
+	encoder := &Encoder{
+		w: w,
+	}
+	encoder.encoder = jsontext.NewEncoder(w)
+	return encoder
 }
 
-func (state *encoderState) enterPointer(v reflect.Value) bool {
-	key := valueId{v.Type(), v.UnsafePointer(), state.sliceLen(v)}
-	if _, ok := state.visited[key]; ok {
+func (encoder *Encoder) GetWriter() io.Writer {
+	return encoder.w
+}
+
+func (encoder *Encoder) Reset(w io.Writer) {
+	encoder.encoder.Reset(w)
+	encoder.w = w
+	encoder.visited = nil
+}
+
+func (encoder *Encoder) enterPointer(v reflect.Value) bool {
+	key := valueId{v.Type(), v.UnsafePointer(), encoder.sliceLen(v)}
+	if _, ok := encoder.visited[key]; ok {
 		return false
 	} else {
-		if state.visited == nil {
-			state.visited = make(map[valueId]struct{})
+		if encoder.visited == nil {
+			encoder.visited = make(map[valueId]struct{})
 		}
-		state.visited[key] = struct{}{}
+		encoder.visited[key] = struct{}{}
 		return true
 	}
 }
 
-func (state *encoderState) sliceLen(v reflect.Value) int {
+func (encoder *Encoder) sliceLen(v reflect.Value) int {
 	if v.Kind() == reflect.Slice {
 		return v.Len()
 	}
@@ -44,7 +56,7 @@ type valueId struct {
 	l int
 }
 
-func (state *encoderState) leavePointer(v reflect.Value) {
-	key := valueId{v.Type(), v.UnsafePointer(), state.sliceLen(v)}
-	delete(state.visited, key)
+func (encoder *Encoder) leavePointer(v reflect.Value) {
+	key := valueId{v.Type(), v.UnsafePointer(), encoder.sliceLen(v)}
+	delete(encoder.visited, key)
 }

@@ -1,6 +1,7 @@
 package logjson
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
@@ -23,14 +24,25 @@ func NewLogJson() *LogJson {
 }
 
 func (j *LogJson) Marshal(in any) []byte {
-	state := newEncoderState()
+	var encoder *Encoder
+	var buf *bytes.Buffer
+	encoderAny := encoderPool.Get()
+	if encoderAny == nil {
+		buf = bytes.NewBuffer(nil)
+		encoder = NewEncoder(buf)
+	} else {
+		encoder = encoderAny.(*Encoder)
+		buf = encoder.GetWriter().(*bytes.Buffer)
+		buf.Reset()
+	}
+	defer encoderPool.Put(encoder)
 	v := reflect.ValueOf(in)
 	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
-		state.encoder.WriteToken(jsontext.Null)
-		return removeNewline(state.buf.Bytes())
+		encoder.encoder.WriteToken(jsontext.Null)
+		return removeNewline(buf.Bytes())
 	}
-	j.getHandlerItem(v.Type()).marshal(v, state)
-	return removeNewline(state.buf.Bytes())
+	j.getHandlerItem(v.Type()).marshal(v, encoder)
+	return removeNewline(buf.Bytes())
 }
 
 var errorIntType = reflect.TypeFor[error]()
@@ -65,7 +77,7 @@ func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
 		return j.makeInterfaceHandlerItem(t)
 	}
 	return &handlerItem{
-		marshal: func(v reflect.Value, state *encoderState) {
+		marshal: func(v reflect.Value, state *Encoder) {
 			state.encoder.WriteToken(jsontext.Null)
 		},
 	}
@@ -85,7 +97,7 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 
 func (j *LogJson) makeErrorHandlerItem() *handlerItem {
 	return &handlerItem{
-		marshal: func(v reflect.Value, state *encoderState) {
+		marshal: func(v reflect.Value, state *Encoder) {
 			if err, ok := v.Interface().(error); ok {
 				state.encoder.WriteToken(jsontext.String(err.Error()))
 				return
@@ -98,7 +110,7 @@ func (j *LogJson) makeErrorHandlerItem() *handlerItem {
 
 func (j *LogJson) makeInterfaceHandlerItem(t reflect.Type) *handlerItem {
 	item := &handlerItem{}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		if v.IsNil() {
 			state.encoder.WriteToken(jsontext.Null)
 			return
@@ -117,7 +129,7 @@ func (j *LogJson) makeArrayHandlerItem(t reflect.Type) *handlerItem {
 		elementHandlerItem = j.getHandlerItem(t.Elem())
 	}
 	n := t.Len()
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		once.Do(init)
 		state.encoder.WriteToken(jsontext.ArrayStart)
 		for i := 0; i < n; i++ {
@@ -133,7 +145,7 @@ func (j *LogJson) makeMapHandlerItem(t reflect.Type) *handlerItem {
 	keyStringify, ok := generateMarshalToStringFunc(t.Key())
 	if !ok {
 		return &handlerItem{
-			marshal: func(v reflect.Value, state *encoderState) {
+			marshal: func(v reflect.Value, state *Encoder) {
 				state.encoder.WriteToken(jsontext.Null)
 			},
 		}
@@ -143,7 +155,7 @@ func (j *LogJson) makeMapHandlerItem(t reflect.Type) *handlerItem {
 	init := func() {
 		valueHandlerItem = j.getHandlerItem(t.Elem())
 	}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		if v.IsNil() {
 			state.encoder.WriteToken(jsontext.Null)
 			return
@@ -169,7 +181,7 @@ func (j *LogJson) makeMapHandlerItem(t reflect.Type) *handlerItem {
 
 func (j *LogJson) makeBoolHandlerItem() *handlerItem {
 	item := &handlerItem{}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		state.encoder.WriteToken(jsontext.Bool(v.Bool()))
 	}
 	return item
@@ -177,7 +189,7 @@ func (j *LogJson) makeBoolHandlerItem() *handlerItem {
 
 func (j *LogJson) makeDoubleHandlerItem() *handlerItem {
 	item := &handlerItem{}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		state.encoder.WriteToken(jsontext.Float(v.Float()))
 	}
 	return item
@@ -185,7 +197,7 @@ func (j *LogJson) makeDoubleHandlerItem() *handlerItem {
 
 func (j *LogJson) makeUintHandlerItem(t reflect.Type) *handlerItem {
 	item := &handlerItem{}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		state.encoder.WriteToken(jsontext.Uint(v.Uint()))
 	}
 	return item
@@ -193,7 +205,7 @@ func (j *LogJson) makeUintHandlerItem(t reflect.Type) *handlerItem {
 
 func (j *LogJson) makeIntHandlerItem(t reflect.Type) *handlerItem {
 	item := &handlerItem{}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		state.encoder.WriteToken(jsontext.Int(v.Int()))
 	}
 	return item
@@ -202,7 +214,7 @@ func (j *LogJson) makeIntHandlerItem(t reflect.Type) *handlerItem {
 func (j *LogJson) makeSliceHandlerItem(t reflect.Type) *handlerItem {
 	item := &handlerItem{}
 	if t.Elem().Kind() == reflect.Uint8 {
-		item.marshal = func(v reflect.Value, state *encoderState) {
+		item.marshal = func(v reflect.Value, state *Encoder) {
 			val := v.Bytes()
 			base64Val := base64.RawStdEncoding.EncodeToString(val)
 			state.encoder.WriteToken(jsontext.String(base64Val))
@@ -214,7 +226,7 @@ func (j *LogJson) makeSliceHandlerItem(t reflect.Type) *handlerItem {
 	init := func() {
 		sliceItem = j.getHandlerItem(t.Elem())
 	}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		if v.IsNil() {
 			state.encoder.WriteToken(jsontext.Null)
 			return
@@ -244,7 +256,7 @@ func (j *LogJson) makePointerHandlerItem(t reflect.Type) *handlerItem {
 	init := func() {
 		valItem = j.getHandlerItem(t.Elem())
 	}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		if v.IsNil() {
 			state.encoder.WriteToken(jsontext.Null)
 			return
@@ -269,7 +281,7 @@ func (j *LogJson) makeStructHandlerItem(t reflect.Type) *handlerItem {
 	init := func() {
 		fields = j.parseStructFields(t)
 	}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		once.Do(init)
 		state.encoder.WriteToken(jsontext.ObjectStart)
 		for _, field := range fields {
@@ -320,7 +332,7 @@ func (f *structField) initLogTag(j *LogJson, field reflect.StructField) bool {
 	case "md5":
 		if field.Type.Kind() == reflect.String {
 			f.handlerItem = &handlerItem{}
-			f.handlerItem.marshal = func(v reflect.Value, state *encoderState) {
+			f.handlerItem.marshal = func(v reflect.Value, state *Encoder) {
 				s := v.String()
 				hexMd5 := md5.Sum([]byte(s))
 				md5Str := hex.EncodeToString(hexMd5[:])
@@ -365,25 +377,25 @@ func (j *LogJson) parseStructFields(t reflect.Type) []structField {
 
 func (j *LogJson) makeStringHandlerItem() *handlerItem {
 	item := &handlerItem{}
-	item.marshal = func(v reflect.Value, state *encoderState) {
+	item.marshal = func(v reflect.Value, state *Encoder) {
 		state.encoder.WriteToken(jsontext.String(v.String()))
 	}
 	return item
 }
 
 type handlerItem struct {
-	marshal func(v reflect.Value, state *encoderState)
+	marshal func(v reflect.Value, state *Encoder)
 }
 
 func removeNewline(s []byte) []byte {
 	l := len(s)
 	if l == 0 {
-		return s
+		return nil
 	}
 	if s[l-1] == '\n' {
-		return s[:l-1]
+		return bytes.Clone(s[:l-1])
 	}
-	return s
+	return bytes.Clone(s)
 }
 
 // isLegacyEmpty reports whether a value is empty according to the v1 definition.
@@ -438,3 +450,5 @@ func generateMarshalToStringFunc(t reflect.Type) (func(v reflect.Value) string, 
 }
 
 const startDetectingCyclesAfter = 1000
+
+var encoderPool sync.Pool
