@@ -22,7 +22,9 @@ type LogJson struct {
 var defaultJson = NewLogJson()
 
 func NewLogJson() *LogJson {
-	return &LogJson{}
+	return &LogJson{
+		logRules: make(map[string]*logRuleConf),
+	}
 }
 
 func (j *LogJson) AddLogRule(key string, rule LogRule) {

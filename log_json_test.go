@@ -146,6 +146,19 @@ func Test_ReflectString(t *testing.T) {
 	require.Equal(t, "<int Value>", v.String())
 }
 
+func Test_Md5LogRule(t *testing.T) {
+	j := NewLogJson()
+	type Abc struct {
+		Name string
+	}
+	abc := Abc{
+		Name: "hello",
+	}
+	j.AddLogRule("Name", LogRuleMd5())
+	buf := j.Marshal(abc)
+	require.Equal(t, `{"Name":"5;5d41402abc4b2a76b9719d911017c592"}`, string(buf))
+}
+
 func marshalToLogStr(in any) string {
 	return string(Marshal(in))
 }
