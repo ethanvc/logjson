@@ -3,6 +3,7 @@ package logjson
 import (
 	"errors"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
 )
@@ -157,6 +158,13 @@ func Test_Md5LogRule(t *testing.T) {
 	j.AddLogRule("Name", LogRuleMd5())
 	buf := j.Marshal(abc)
 	require.Equal(t, `{"Name":"5;5d41402abc4b2a76b9719d911017c592"}`, string(buf))
+}
+
+func Test_GetProtoFiledExtension(t *testing.T) {
+	abc := &TestProtoAbc{}
+	abc.MyName = proto.String("hello")
+	tmp := getFieldOptionLogJsonValue(reflect.ValueOf(abc), "myName")
+	require.Equal(t, `md5`, tmp)
 }
 
 func marshalToLogStr(in any) string {

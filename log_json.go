@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/go-json-experiment/json/jsontext"
+	"google.golang.org/protobuf/proto"
 	"reflect"
 	"strconv"
 	"strings"
@@ -482,6 +483,26 @@ func generateMarshalToStringFunc(t reflect.Type) (func(v reflect.Value) string, 
 	} else {
 		return nil, false
 	}
+}
+
+// reference: https://stackoverflow.com/questions/69311708/how-to-retrieve-fieldoption-value
+func getFieldOptionLogJsonValue(v reflect.Value, key string) string {
+	msg, ok := v.Interface().(proto.Message)
+	if !ok {
+		return ""
+	}
+	pfMsg := msg.ProtoReflect()
+	msgDesc := pfMsg.Descriptor()
+	fields := msgDesc.Fields()
+	field := fields.ByJSONName(key)
+	if field == nil {
+		return ""
+	}
+	logJsonValAny := proto.GetExtension(field.Options(), E_LogJson)
+	if s, ok := logJsonValAny.(string); ok {
+		return s
+	}
+	return ""
 }
 
 const startDetectingCyclesAfter = 1000
