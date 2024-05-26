@@ -54,6 +54,12 @@ func (j *LogJson) Marshal(in any) []byte {
 	return removeNewline(buf.Bytes())
 }
 
+func (j *LogJson) getLogRule(key string) *logRuleConf {
+	j.mux.Lock()
+	defer j.mux.Unlock()
+	return j.logRules[key]
+}
+
 var errorIntType = reflect.TypeFor[error]()
 
 func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
@@ -99,9 +105,8 @@ func (j *LogJson) getHandlerItem(t reflect.Type) *handlerItem {
 	handler := j.getHandlerItemInternal(t)
 	if existHandler, loaded := j.handlerItems.LoadOrStore(t, handler); loaded {
 		return existHandler.(*handlerItem)
-	} else {
-		return handler
 	}
+	return handler
 }
 
 func (j *LogJson) makeErrorHandlerItem() *handlerItem {
@@ -329,9 +334,26 @@ func (f *structField) init(j *LogJson, field reflect.StructField) bool {
 	}
 	f.initJsonTag(field)
 	if f.handlerItem == nil {
+		// if handlerItem not set, try set it by log rule
+		f.initHandlerByLogRule(j, field)
+	}
+	if f.handlerItem == nil {
+		// not specified, use normal handler
 		f.handlerItem = j.getHandlerItem(field.Type)
 	}
 	return true
+}
+
+func (f *structField) initHandlerByLogRule(j *LogJson, field reflect.StructField) {
+	conf := j.getLogRule(f.Name)
+	if conf == nil {
+		return
+	}
+	if field.Type.Kind() != reflect.String {
+		return
+	}
+	f.handlerItem = &handlerItem{}
+	f.handlerItem.marshal = md5Marshal
 }
 
 func (f *structField) initLogTag(j *LogJson, field reflect.StructField) bool {
@@ -341,15 +363,17 @@ func (f *structField) initLogTag(j *LogJson, field reflect.StructField) bool {
 	case "md5":
 		if field.Type.Kind() == reflect.String {
 			f.handlerItem = &handlerItem{}
-			f.handlerItem.marshal = func(v reflect.Value, state *EncoderState) {
-				s := v.String()
-				hexMd5 := md5.Sum([]byte(s))
-				md5Str := hex.EncodeToString(hexMd5[:])
-				state.encoder.WriteToken(jsontext.String(fmt.Sprintf("%d;%s", len(s), md5Str)))
-			}
+			f.handlerItem.marshal = md5Marshal
 		}
 	}
 	return true
+}
+
+func md5Marshal(v reflect.Value, state *EncoderState) {
+	s := v.String()
+	hexMd5 := md5.Sum([]byte(s))
+	md5Str := hex.EncodeToString(hexMd5[:])
+	state.encoder.WriteToken(jsontext.String(fmt.Sprintf("%d;%s", len(s), md5Str)))
 }
 
 func (f *structField) initJsonTag(field reflect.StructField) {
