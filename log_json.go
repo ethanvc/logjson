@@ -26,7 +26,7 @@ func NewLogJson() *LogJson {
 func (j *LogJson) Marshal(in any) []byte {
 	var encoder *EncoderState
 	var buf *bytes.Buffer
-	encoderAny := encoderPool.Get()
+	encoderAny := encoderStatePool.Get()
 	if encoderAny == nil {
 		buf = bytes.NewBuffer(nil)
 		encoder = NewEncoderState(buf)
@@ -35,7 +35,7 @@ func (j *LogJson) Marshal(in any) []byte {
 		buf = encoder.GetWriter().(*bytes.Buffer)
 		buf.Reset()
 	}
-	defer encoderPool.Put(encoder)
+	defer encoderStatePool.Put(encoder)
 	v := reflect.ValueOf(in)
 	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		encoder.encoder.WriteToken(jsontext.Null)
@@ -451,4 +451,4 @@ func generateMarshalToStringFunc(t reflect.Type) (func(v reflect.Value) string, 
 
 const startDetectingCyclesAfter = 1000
 
-var encoderPool sync.Pool
+var encoderStatePool sync.Pool
