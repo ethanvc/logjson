@@ -17,7 +17,7 @@ func TestNewLogJsonEncoder(t *testing.T) {
 		Name: "hello",
 	}
 	logger.Info("Test", zap.Any("test", abc))
-	require.Equal(t, ``, buf.String())
+	require.Equal(t, `{"level":"info","msg":"Test","test":{"Name":"hello"}}`+"\n", buf.String())
 }
 
 func newTestZapLogger() (*zap.Logger, *bytes.Buffer) {
@@ -25,7 +25,8 @@ func newTestZapLogger() (*zap.Logger, *bytes.Buffer) {
 	syncer := zapcore.AddSync(buf)
 	encoderConf := zap.NewProductionEncoderConfig()
 	encoderConf.TimeKey = ""
-	encoder := NewLogJsonEncoder(encoderConf)
+	encoderConf.NewReflectedEncoder = NewReflectedEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConf)
 	core := zapcore.NewCore(encoder, syncer, zapcore.DebugLevel)
 	logger := zap.New(core)
 	return logger, buf
