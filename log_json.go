@@ -15,12 +15,21 @@ import (
 
 type LogJson struct {
 	handlerItems sync.Map
+	mux          sync.Mutex
+	logRules     map[string]*logRuleConf
 }
 
 var defaultJson = NewLogJson()
 
 func NewLogJson() *LogJson {
 	return &LogJson{}
+}
+
+func (j *LogJson) AddLogRule(key string, rule LogRule) {
+	conf := newLogRuleConf(rule)
+	j.mux.Lock()
+	defer j.mux.Unlock()
+	j.logRules[key] = conf
 }
 
 func (j *LogJson) Marshal(in any) []byte {
