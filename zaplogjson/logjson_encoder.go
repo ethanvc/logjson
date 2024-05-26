@@ -14,3 +14,7 @@ type LogJsonEncoder struct {
 func (encoder *LogJsonEncoder) init(conf zapcore.EncoderConfig) {
 	encoder.Encoder = zapcore.NewJSONEncoder(conf)
 }
+
+func (encoder *LogJsonEncoder) AddReflected(key string, value any) error {
+	return nil
+}
