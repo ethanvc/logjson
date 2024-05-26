@@ -1,6 +1,8 @@
 syntax = "proto2";
 import "google/protobuf/descriptor.proto";
 
+option go_package = "github.com/ethanvc/logjson;logjson";
+
 extend google.protobuf.FieldOptions {
   optional string log_json = 98721;
 }
