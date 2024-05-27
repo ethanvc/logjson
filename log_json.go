@@ -319,57 +319,45 @@ type structField struct {
 	Name        string
 	handlerItem *handlerItem
 	omitempty   bool
+	omit        bool
+	conf        *logRuleConf
 }
 
-func newStructField(j *LogJson, field reflect.StructField) (structField, bool) {
+func newStructField(j *LogJson, field reflect.StructField) structField {
 	f := structField{}
-	if !f.init(j, field) {
-		return structField{}, false
-	}
-	return f, true
-}
-
-func (f *structField) init(j *LogJson, field reflect.StructField) bool {
-	f.Name = field.Name
-	f.Index = field.Index
-	if !f.initLogTag(j, field) {
-		return false
-	}
-	f.initJsonTag(field)
-	if f.handlerItem == nil {
-		// if handlerItem not set, try set it by log rule
-		f.initHandlerByLogRule(j, field)
-	}
-	if f.handlerItem == nil {
-		// not specified, use normal handler
+	f.init(j, field)
+	if f.conf != nil {
+		f.handlerItem = f.conf.GetHandlerItem(field)
+	} else {
 		f.handlerItem = j.getHandlerItem(field.Type)
 	}
-	return true
+	return f
 }
 
-func (f *structField) initHandlerByLogRule(j *LogJson, field reflect.StructField) {
-	conf := j.getLogRule(f.Name)
-	if conf == nil {
+func (f *structField) init(j *LogJson, field reflect.StructField) {
+	f.handlerItem = j.getHandlerItem(field.Type)
+	f.Name = field.Name
+	f.Index = field.Index
+	f.initJsonTag(field)
+	f.conf = newLogRuleConfFromStr(field.Tag.Get("log"))
+	if f.conf != nil {
 		return
 	}
-	if field.Type.Kind() != reflect.String {
+	f.conf = j.getLogRule(f.Name)
+	if f.conf != nil {
 		return
 	}
-	f.handlerItem = &handlerItem{}
-	f.handlerItem.marshal = md5Marshal
+	return
 }
 
-func (f *structField) initLogTag(j *LogJson, field reflect.StructField) bool {
-	switch field.Tag.Get("log") {
-	case "omit":
-		return false
-	case "md5":
-		if field.Type.Kind() == reflect.String {
-			f.handlerItem = &handlerItem{}
-			f.handlerItem.marshal = md5Marshal
-		}
+func (f *structField) Omit() bool {
+	if f.omit {
+		return true
 	}
-	return true
+	if f.conf != nil && f.conf.Omit() {
+		return true
+	}
+	return false
 }
 
 func md5Marshal(v reflect.Value, state *EncoderState) {
@@ -402,8 +390,8 @@ func (j *LogJson) parseStructFields(t reflect.Type) []structField {
 		if field.Anonymous {
 			continue
 		}
-		newField, ok := newStructField(j, field)
-		if !ok {
+		newField := newStructField(j, field)
+		if newField.Omit() {
 			continue
 		}
 		result = append(result, newField)
