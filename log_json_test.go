@@ -69,14 +69,6 @@ func TestLogJson_MarshalEmbedStruct(t *testing.T) {
 		marshalToLogStr(Bcd{Abc: Abc{Name: "hello"}}))
 }
 
-func TestLogJson_MarshalUnexportedField(t *testing.T) {
-	type Abc struct {
-		name string
-	}
-	require.Equal(t, `{"name":"hello"}`,
-		marshalToLogStr(Abc{name: "hello"}))
-}
-
 func TestLogJson_MarshalOmitEmpty(t *testing.T) {
 	type Abc struct {
 		name string `json:",omitempty"`
@@ -87,11 +79,11 @@ func TestLogJson_MarshalOmitEmpty(t *testing.T) {
 
 func TestLogJson_Cycle(t *testing.T) {
 	type Abc struct {
-		p *Abc
+		P *Abc
 	}
 	abc := &Abc{}
-	abc.p = abc
-	require.Contains(t, marshalToLogStr(abc), `{"p":{"p":null}`)
+	abc.P = abc
+	require.Contains(t, marshalToLogStr(abc), `{"P":{"P":null}`)
 }
 
 func TestLogJson_Map(t *testing.T) {
@@ -165,6 +157,12 @@ func Test_GetProtoFiledExtension(t *testing.T) {
 	abc.MyName = proto.String("hello")
 	tmp := getFieldOptionLogJsonValue(reflect.ValueOf(abc), "myName")
 	require.Equal(t, `md5`, tmp)
+}
+
+func Test_LogJsonProtoFieldOption(t *testing.T) {
+	abc := &TestProtoAbc{}
+	abc.MyName = proto.String("hello")
+	require.Equal(t, `{"my_name":"5;5d41402abc4b2a76b9719d911017c592"}`, marshalToLogStr(abc))
 }
 
 func marshalToLogStr(in any) string {

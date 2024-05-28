@@ -45,18 +45,19 @@ func (conf *logRuleConf) Omit() bool {
 }
 
 func (conf *logRuleConf) GetHandlerItem(field reflect.StructField) *handlerItem {
-	if conf.omit {
+	if conf.Omit() {
 		return nil
 	}
-	if field.Type.Kind() != reflect.String {
-		return nil
-	}
-	item := &handlerItem{}
+	var marshal func(v reflect.Value, state *EncoderState)
 	if conf.md5 {
-		item.marshal = md5Marshal
-		return item
+		marshal = createMd5Marshal(field.Type)
 	}
-	return nil
+	if marshal == nil {
+		return nil
+	}
+	return &handlerItem{
+		marshal: marshal,
+	}
 }
 
 func LogRuleMd5() LogRule {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/go-json-experiment/json/jsontext"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"reflect"
 	"strconv"
 	"strings"
@@ -323,23 +324,32 @@ type structField struct {
 	conf        *logRuleConf
 }
 
-func newStructField(j *LogJson, field reflect.StructField) structField {
+func newStructField(j *LogJson, parentType reflect.Type, field reflect.StructField) structField {
 	f := structField{}
-	f.init(j, field)
+	f.init(j, parentType, field)
 	if f.conf != nil {
+		if f.Omit() {
+			return f
+		}
 		f.handlerItem = f.conf.GetHandlerItem(field)
-	} else {
+	}
+	if f.handlerItem == nil {
 		f.handlerItem = j.getHandlerItem(field.Type)
 	}
 	return f
 }
 
-func (f *structField) init(j *LogJson, field reflect.StructField) {
+func (f *structField) init(j *LogJson, parentType reflect.Type, field reflect.StructField) {
 	f.handlerItem = j.getHandlerItem(field.Type)
 	f.Name = field.Name
 	f.Index = field.Index
 	f.initJsonTag(field)
 	f.conf = newLogRuleConfFromStr(field.Tag.Get("log"))
+	if f.conf != nil {
+		return
+	}
+	protoLogJsonStr := getFieldOptionFromType(parentType, f.Name)
+	f.conf = newLogRuleConfFromStr(protoLogJsonStr)
 	if f.conf != nil {
 		return
 	}
@@ -360,11 +370,28 @@ func (f *structField) Omit() bool {
 	return false
 }
 
-func md5Marshal(v reflect.Value, state *EncoderState) {
-	s := v.String()
-	hexMd5 := md5.Sum([]byte(s))
-	md5Str := hex.EncodeToString(hexMd5[:])
-	state.encoder.WriteToken(jsontext.String(fmt.Sprintf("%d;%s", len(s), md5Str)))
+func createMd5Marshal(t reflect.Type) func(v reflect.Value, state *EncoderState) {
+	if t.Kind() == reflect.String {
+		return func(v reflect.Value, state *EncoderState) {
+			s := v.String()
+			hexMd5 := md5.Sum([]byte(s))
+			md5Str := hex.EncodeToString(hexMd5[:])
+			state.encoder.WriteToken(jsontext.String(fmt.Sprintf("%d;%s", len(s), md5Str)))
+		}
+	}
+	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.String {
+		return func(v reflect.Value, state *EncoderState) {
+			if v.IsNil() {
+				state.encoder.WriteToken(jsontext.Null)
+				return
+			}
+			s := v.Elem().String()
+			hexMd5 := md5.Sum([]byte(s))
+			md5Str := hex.EncodeToString(hexMd5[:])
+			state.encoder.WriteToken(jsontext.String(fmt.Sprintf("%d;%s", len(s), md5Str)))
+		}
+	}
+	return nil
 }
 
 func (f *structField) initJsonTag(field reflect.StructField) {
@@ -390,7 +417,10 @@ func (j *LogJson) parseStructFields(t reflect.Type) []structField {
 		if field.Anonymous {
 			continue
 		}
-		newField := newStructField(j, field)
+		if !field.IsExported() {
+			continue
+		}
+		newField := newStructField(j, t, field)
 		if newField.Omit() {
 			continue
 		}
@@ -482,7 +512,7 @@ func getFieldOptionLogJsonValue(v reflect.Value, key string) string {
 	pfMsg := msg.ProtoReflect()
 	msgDesc := pfMsg.Descriptor()
 	fields := msgDesc.Fields()
-	field := fields.ByJSONName(key)
+	field := fields.ByName(protoreflect.Name(key))
 	if field == nil {
 		return ""
 	}
@@ -491,6 +521,11 @@ func getFieldOptionLogJsonValue(v reflect.Value, key string) string {
 		return s
 	}
 	return ""
+}
+
+func getFieldOptionFromType(t reflect.Type, key string) string {
+	v := reflect.New(t)
+	return getFieldOptionLogJsonValue(v, key)
 }
 
 const startDetectingCyclesAfter = 1000
