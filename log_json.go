@@ -47,15 +47,20 @@ func (j *LogJson) Marshal(in any) []byte {
 		encoder = encoderAny.(*EncoderState)
 		buf = encoder.GetWriter().(*bytes.Buffer)
 		buf.Reset()
+		encoder.Reset(buf)
 	}
 	defer encoderStatePool.Put(encoder)
+	j.MarshalWithState(in, encoder)
+	return removeNewline(buf.Bytes())
+}
+
+func (j *LogJson) MarshalWithState(in any, encoder *EncoderState) {
 	v := reflect.ValueOf(in)
 	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		encoder.encoder.WriteToken(jsontext.Null)
-		return removeNewline(buf.Bytes())
+		return
 	}
 	j.getHandlerItem(v.Type()).marshal(v, encoder)
-	return removeNewline(buf.Bytes())
 }
 
 func (j *LogJson) getLogRule(key string) *logRuleConf {

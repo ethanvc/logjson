@@ -155,7 +155,7 @@ func Test_Md5LogRule(t *testing.T) {
 func Test_GetProtoFiledExtension(t *testing.T) {
 	abc := &TestProtoAbc{}
 	abc.MyName = proto.String("hello")
-	tmp := getFieldOptionLogJsonValue(reflect.ValueOf(abc), "myName")
+	tmp := getFieldOptionLogJsonValue(reflect.ValueOf(abc), "my_name")
 	require.Equal(t, `md5`, tmp)
 }
 
