@@ -21,7 +21,11 @@ type LogJson struct {
 	logRules     map[string]*logRuleConf
 }
 
-var defaultJson = NewLogJson()
+var defaultLogJson = NewLogJson()
+
+func DefaultLogJson() *LogJson {
+	return defaultLogJson
+}
 
 func NewLogJson() *LogJson {
 	return &LogJson{
