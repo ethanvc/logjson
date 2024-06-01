@@ -11,13 +11,15 @@ import (
 func TestNewLogJsonEncoder(t *testing.T) {
 	logger, buf := newTestZapLogger()
 	type Abc struct {
-		Name string
+		Name     string
+		BankCard string `log:"md5"`
 	}
 	abc := Abc{
-		Name: "hello",
+		Name:     "hello",
+		BankCard: "",
 	}
 	logger.Info("Test", zap.Any("test", abc))
-	require.Equal(t, `{"level":"info","msg":"Test","test":{"Name":"hello"}}`+"\n", buf.String())
+	require.Equal(t, `{"level":"info","msg":"Test","test":{"Name":"hello","BankCard":"0;d41d8cd98f00b204e9800998ecf8427e"}}`+"\n", buf.String())
 }
 
 func newTestZapLogger() (*zap.Logger, *bytes.Buffer) {
