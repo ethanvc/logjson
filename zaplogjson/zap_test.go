@@ -25,7 +25,8 @@ func newTestZapLogger() (*zap.Logger, *bytes.Buffer) {
 	syncer := zapcore.AddSync(buf)
 	encoderConf := zap.NewProductionEncoderConfig()
 	encoderConf.TimeKey = ""
-	encoder := NewJsonLogEncoder(NewJsonLogEncoderConfig(encoderConf))
+	encoderConf.NewReflectedEncoder = NewReflectedEncoder
+	encoder := zapcore.NewJSONEncoder(encoderConf)
 	core := zapcore.NewCore(encoder, syncer, zapcore.DebugLevel)
 	logger := zap.New(core)
 	return logger, buf

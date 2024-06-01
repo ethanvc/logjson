@@ -22,24 +22,3 @@ func (enc ReflectedEncoder) Encode(val any) error {
 	enc.w.Write(buf)
 	return nil
 }
-
-type JsonLogEncoder struct {
-	zapcore.Encoder
-}
-
-func NewJsonLogEncoder(conf JsonLogEncoderConfig) *JsonLogEncoder {
-	encoder := &JsonLogEncoder{
-		Encoder: zapcore.NewJSONEncoder(conf.EncoderConfig),
-	}
-	return encoder
-}
-
-type JsonLogEncoderConfig struct {
-	zapcore.EncoderConfig
-}
-
-func NewJsonLogEncoderConfig(conf zapcore.EncoderConfig) JsonLogEncoderConfig {
-	return JsonLogEncoderConfig{
-		EncoderConfig: conf,
-	}
-}
