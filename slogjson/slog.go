@@ -19,7 +19,7 @@ type HandlerOption struct {
 }
 
 func (h *Handler) Enabled(context.Context, slog.Level) bool {
-	return false
+	return true
 }
 
 func (h *Handler) Handle(context.Context, slog.Record) error {
