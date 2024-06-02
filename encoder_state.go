@@ -7,7 +7,7 @@ import (
 )
 
 type EncoderState struct {
-	encoder *jsontext.Encoder
+	*jsontext.Encoder
 	w       io.Writer
 	visited map[valueId]struct{}
 }
@@ -16,7 +16,7 @@ func NewEncoderState(w io.Writer) *EncoderState {
 	encoder := &EncoderState{
 		w: w,
 	}
-	encoder.encoder = jsontext.NewEncoder(w)
+	encoder.Encoder = jsontext.NewEncoder(w)
 	return encoder
 }
 
@@ -25,7 +25,7 @@ func (state *EncoderState) GetWriter() io.Writer {
 }
 
 func (state *EncoderState) Reset(w io.Writer) {
-	state.encoder.Reset(w)
+	state.Encoder.Reset(w)
 	state.w = w
 	state.visited = nil
 }
