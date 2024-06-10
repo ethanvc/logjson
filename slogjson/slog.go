@@ -43,9 +43,16 @@ func (h *Handler) Handle(c context.Context, record slog.Record) error {
 	state.WriteToken(jsontext.ObjectStart)
 	h.appendNonBuiltIns(state, record)
 	state.WriteToken(jsontext.ObjectEnd)
-	buf.WriteByte('\n')
+	h.appendNewLineIfNeed(buf)
 	h.w.Write(buf.Bytes())
 	return nil
+}
+
+func (h *Handler) appendNewLineIfNeed(buf *bytes.Buffer) {
+	by := buf.Bytes()
+	if len(by) > 0 && by[len(by)-1] != '\n' {
+		buf.WriteByte('\n')
+	}
 }
 
 func (h *Handler) appendNonBuiltIns(state *logjson.EncoderState, r slog.Record) {
@@ -56,7 +63,13 @@ func (h *Handler) appendNonBuiltIns(state *logjson.EncoderState, r slog.Record) 
 }
 
 func (h *Handler) appendItem(state *logjson.EncoderState, a slog.Attr) {
+	switch a.Value.Kind() {
+	case slog.KindString:
+		state.WriteToken(jsontext.String(a.Key))
+		state.WriteToken(jsontext.String(a.String()))
+	default:
 
+	}
 }
 
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {

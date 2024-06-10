@@ -14,6 +14,6 @@ func Test_Basic(t *testing.T) {
 	})
 	l := slog.New(h)
 	require.Equal(t, ``, buf.String())
-	l.Info("Test")
-	require.Equal(t, `test`, buf.String())
+	l.Info("Test", slog.String("xx", "abc"))
+	require.Equal(t, `{"xx":"xx=abc"}`+"\n", buf.String())
 }
