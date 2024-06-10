@@ -12,15 +12,17 @@ import (
 )
 
 type Handler struct {
-	w io.Writer
-	l *logjson.LogJson
+	w     io.Writer
+	l     *logjson.LogJson
+	level slog.Leveler
 }
 
 func NewHandler(conf *HandlerOption) *Handler {
 	conf.init()
 	h := &Handler{
-		w: conf.Writer,
-		l: conf.LogJson,
+		w:     conf.Writer,
+		l:     conf.LogJson,
+		level: conf.Level,
 	}
 	return h
 }
@@ -28,6 +30,7 @@ func NewHandler(conf *HandlerOption) *Handler {
 type HandlerOption struct {
 	Writer  io.Writer
 	LogJson *logjson.LogJson
+	Level   slog.Leveler
 }
 
 func (o *HandlerOption) init() {
@@ -36,8 +39,12 @@ func (o *HandlerOption) init() {
 	}
 }
 
-func (h *Handler) Enabled(context.Context, slog.Level) bool {
-	return true
+func (h *Handler) Enabled(c context.Context, l slog.Level) bool {
+	minLevel := slog.LevelInfo
+	if h.level != nil {
+		minLevel = h.level.Level()
+	}
+	return l >= minLevel
 }
 
 func (h *Handler) Handle(c context.Context, record slog.Record) error {
