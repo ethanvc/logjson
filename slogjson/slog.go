@@ -8,23 +8,22 @@ import (
 	"github.com/go-json-experiment/json/jsontext"
 	"io"
 	"log/slog"
-	"sync/atomic"
 	"time"
 )
 
 type Handler struct {
 	w     io.Writer
 	l     *logjson.LogJson
-	level atomic.Value
+	level slog.Leveler
 }
 
 func NewHandler(conf *HandlerOption) *Handler {
 	conf.init()
 	h := &Handler{
-		w: conf.Writer,
-		l: conf.LogJson,
+		w:     conf.Writer,
+		l:     conf.LogJson,
+		level: conf.Level,
 	}
-	h.level.Store(conf.Level)
 	return h
 }
 
@@ -38,22 +37,12 @@ func (o *HandlerOption) init() {
 	if o.LogJson == nil {
 		o.LogJson = logjson.DefaultLogJson()
 	}
-	if o.Level == nil {
-		o.Level = slog.LevelInfo
-	}
-}
-
-func (h *Handler) SetLevel(lvl slog.Leveler) {
-	if lvl == nil {
-		lvl = slog.LevelInfo
-	}
-	h.level.Store(lvl)
 }
 
 func (h *Handler) Enabled(c context.Context, l slog.Level) bool {
 	minLevel := slog.LevelInfo
-	if setLvl, _ := h.level.Load().(slog.Leveler); setLvl != nil {
-		minLevel = setLvl.Level()
+	if h.level != nil {
+		minLevel = h.level.Level()
 	}
 	return l >= minLevel
 }
