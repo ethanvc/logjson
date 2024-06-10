@@ -66,7 +66,7 @@ func (h *Handler) appendItem(state *logjson.EncoderState, a slog.Attr) {
 	switch a.Value.Kind() {
 	case slog.KindString:
 		state.WriteToken(jsontext.String(a.Key))
-		state.WriteToken(jsontext.String(a.String()))
+		state.WriteToken(jsontext.String(a.Value.String()))
 	default:
 
 	}
