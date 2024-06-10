@@ -49,6 +49,7 @@ func (h *Handler) Enabled(c context.Context, l slog.Level) bool {
 
 func (h *Handler) Handle(c context.Context, record slog.Record) error {
 	buf := bytes.NewBuffer(nil)
+	h.writeBasicInfo(buf, record)
 	state := logjson.NewEncoderState(buf)
 	state.WriteToken(jsontext.ObjectStart)
 	h.appendNonBuiltIns(state, record)
@@ -56,6 +57,13 @@ func (h *Handler) Handle(c context.Context, record slog.Record) error {
 	h.appendNewLineIfNeed(buf)
 	h.w.Write(buf.Bytes())
 	return nil
+}
+
+func (h *Handler) writeBasicInfo(buf *bytes.Buffer, record slog.Record) {
+	buf.WriteString(record.Time.Format(time.RFC3339Nano))
+	buf.WriteByte('|')
+	buf.WriteString(record.Message)
+	buf.WriteByte('|')
 }
 
 func (h *Handler) appendNewLineIfNeed(buf *bytes.Buffer) {
