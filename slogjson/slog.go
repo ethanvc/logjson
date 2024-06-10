@@ -3,10 +3,12 @@ package slogjson
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/ethanvc/logjson"
 	"github.com/go-json-experiment/json/jsontext"
 	"io"
 	"log/slog"
+	"time"
 )
 
 type Handler struct {
@@ -15,6 +17,7 @@ type Handler struct {
 }
 
 func NewHandler(conf *HandlerOption) *Handler {
+	conf.init()
 	h := &Handler{
 		w: conf.Writer,
 		l: conf.LogJson,
@@ -67,6 +70,29 @@ func (h *Handler) appendItem(state *logjson.EncoderState, a slog.Attr) {
 	case slog.KindString:
 		state.WriteToken(jsontext.String(a.Key))
 		state.WriteToken(jsontext.String(a.Value.String()))
+	case slog.KindUint64:
+		state.WriteToken(jsontext.String(a.Key))
+		state.WriteToken(jsontext.Uint(a.Value.Uint64()))
+	case slog.KindInt64:
+		state.WriteToken(jsontext.String(a.Key))
+		state.WriteToken(jsontext.Int(a.Value.Int64()))
+	case slog.KindFloat64:
+		state.WriteToken(jsontext.String(a.Key))
+		state.WriteToken(jsontext.Float(a.Value.Float64()))
+	case slog.KindBool:
+		state.WriteToken(jsontext.String(a.Key))
+		state.WriteToken(jsontext.Bool(a.Value.Bool()))
+	case slog.KindDuration:
+		state.WriteToken(jsontext.String(a.Key))
+		s := fmt.Sprintf("%dus", a.Value.Duration().Microseconds())
+		state.WriteToken(jsontext.String(s))
+	case slog.KindTime:
+		state.WriteToken(jsontext.String(a.Key))
+		s := a.Value.Time().Format(time.RFC3339Nano)
+		state.WriteToken(jsontext.String(s))
+	case slog.KindAny:
+		state.WriteToken(jsontext.String(a.Key))
+		h.l.MarshalWithState(a.Value.Any(), state)
 	default:
 
 	}

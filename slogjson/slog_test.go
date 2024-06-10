@@ -14,6 +14,13 @@ func Test_Basic(t *testing.T) {
 	})
 	l := slog.New(h)
 	require.Equal(t, ``, buf.String())
-	l.Info("Test", slog.String("xx", "abc"))
-	require.Equal(t, `{"xx":"abc"}`+"\n", buf.String())
+	type Abc struct {
+		Name string
+	}
+	abc := Abc{
+		Name: "test",
+	}
+	l.Info("Test", slog.String("xx", "abc"),
+		slog.Any("abc", abc))
+	require.Equal(t, `{"xx":"abc","abc":{"Name":"test"}}`+"\n", buf.String())
 }
