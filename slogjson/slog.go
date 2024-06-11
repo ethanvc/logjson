@@ -62,6 +62,8 @@ func (h *Handler) Handle(c context.Context, record slog.Record) error {
 func (h *Handler) writeBasicInfo(buf *bytes.Buffer, record slog.Record) {
 	buf.WriteString(record.Time.Format(time.RFC3339Nano))
 	buf.WriteByte('|')
+	buf.WriteString(record.Level.String())
+	buf.WriteByte('|')
 	buf.WriteString(record.Message)
 	buf.WriteByte('|')
 }
