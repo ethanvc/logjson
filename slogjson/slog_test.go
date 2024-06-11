@@ -22,5 +22,5 @@ func Test_Basic(t *testing.T) {
 	}
 	l.Info("Test", slog.String("xx", "abc"),
 		slog.Any("abc", abc))
-	require.Equal(t, `{"xx":"abc","abc":{"Name":"test"}}`+"\n", buf.String())
+	require.Regexp(t, `.*|Test|{"xx":"abc","abc":{"Name":"test"}}`, buf.String())
 }

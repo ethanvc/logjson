@@ -64,6 +64,9 @@ func (h *Handler) writeBasicInfo(buf *bytes.Buffer, record slog.Record) {
 	buf.WriteByte('|')
 	buf.WriteString(record.Level.String())
 	buf.WriteByte('|')
+	frame := logjson.GetCallerFrame(record.PC)
+	buf.WriteString(logjson.GetFilePathForLog(frame.File, frame.Line))
+	buf.WriteByte('|')
 	buf.WriteString(record.Message)
 	buf.WriteByte('|')
 }
