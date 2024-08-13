@@ -2,10 +2,12 @@ package logjson
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
+
+	"github.com/go-json-experiment/json/jsontext"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestLogJson_MarshalNil(t *testing.T) {
@@ -167,4 +169,14 @@ func Test_LogJsonProtoFieldOption(t *testing.T) {
 
 func marshalToLogStr(in any) string {
 	return string(Marshal(in))
+}
+
+type testLogMarshaler int
+
+func (testLogMarshaler) MarshalLogJSON(encoder *jsontext.Encoder) {
+	encoder.WriteToken(jsontext.String("custom"))
+}
+
+func Test_logMarshaler(t *testing.T) {
+	require.Equal(t, `"custom"`, marshalToLogStr(testLogMarshaler(3)))
 }

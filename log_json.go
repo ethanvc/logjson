@@ -6,13 +6,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/go-json-experiment/json/jsontext"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/go-json-experiment/json/jsontext"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type LogJson struct {
@@ -74,11 +75,14 @@ func (j *LogJson) getLogRule(key string) *logRuleConf {
 }
 
 var errorIntType = reflect.TypeFor[error]()
+var logMarshalerIntType = reflect.TypeFor[LogMarshaler]()
 
 func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
-
 	if t.Implements(errorIntType) {
 		return j.makeErrorHandlerItem()
+	}
+	if t.Implements(logMarshalerIntType) {
+		return j.makeLogMarshalerHandlerItem()
 	}
 	switch t.Kind() {
 	case reflect.Bool:
@@ -107,6 +111,15 @@ func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
 	return &handlerItem{
 		marshal: func(v reflect.Value, state *EncoderState) {
 			state.Encoder.WriteToken(jsontext.Null)
+		},
+	}
+}
+
+func (j *LogJson) makeLogMarshalerHandlerItem() *handlerItem {
+	return &handlerItem{
+		marshal: func(v reflect.Value, state *EncoderState) {
+			realInt, _ := v.Interface().(LogMarshaler)
+			realInt.MarshalLogJSON(state.Encoder)
 		},
 	}
 }
