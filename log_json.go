@@ -78,11 +78,11 @@ var errorIntType = reflect.TypeFor[error]()
 var logMarshalerIntType = reflect.TypeFor[LogMarshaler]()
 
 func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
-	if t.Implements(errorIntType) {
-		return j.makeErrorHandlerItem()
-	}
 	if t.Implements(logMarshalerIntType) {
 		return j.makeLogMarshalerHandlerItem()
+	}
+	if t.Implements(errorIntType) {
+		return j.makeErrorHandlerItem()
 	}
 	switch t.Kind() {
 	case reflect.Bool:
