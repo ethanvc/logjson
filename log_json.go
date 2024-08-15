@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -76,10 +77,14 @@ func (j *LogJson) getLogRule(key string) *logRuleConf {
 
 var errorIntType = reflect.TypeFor[error]()
 var logMarshalerIntType = reflect.TypeFor[LogMarshaler]()
+var marshalerV2IntType = reflect.TypeFor[json.MarshalerV2]()
 
 func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
 	if t.Implements(logMarshalerIntType) {
 		return j.makeLogMarshalerHandlerItem()
+	}
+	if t.Implements(marshalerV2IntType) {
+		return j.makeMarshalerV2HandlerItem()
 	}
 	if t.Implements(errorIntType) {
 		return j.makeErrorHandlerItem()
@@ -111,6 +116,15 @@ func (j *LogJson) getHandlerItemInternal(t reflect.Type) *handlerItem {
 	return &handlerItem{
 		marshal: func(v reflect.Value, state *EncoderState) {
 			state.Encoder.WriteToken(jsontext.Null)
+		},
+	}
+}
+
+func (j *LogJson) makeMarshalerV2HandlerItem() *handlerItem {
+	return &handlerItem{
+		marshal: func(v reflect.Value, state *EncoderState) {
+			realInt, _ := v.Interface().(json.MarshalerV2)
+			realInt.MarshalJSONV2(state.Encoder, nil)
 		},
 	}
 }
